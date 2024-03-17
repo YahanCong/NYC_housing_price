@@ -1,9 +1,11 @@
 import pandas as pd
+import requests
 import geopandas as gpd
 from shapely.geometry import Point
 import dash
 from dash import Dash, dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 import plotly.express as px
 import altair as alt
 import dash_bootstrap_components as dbc
@@ -28,6 +30,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 data_dir = os.path.join(parent_dir, "data")
 geojson_file = os.path.join(data_dir, "NYC_Borough_Boundary.geojson")
 csv_file = os.path.join(data_dir, "NewYork_add_all.csv")
+park_label_path = os.path.join(data_dir, "parks_label.png")
 
 # load data
 nyc_boroughs = gpd.read_file(geojson_file)
@@ -36,6 +39,9 @@ joined_data = pd.read_csv(csv_file)
 
 # mapbox API key
 mapbox_key = "pk.eyJ1IjoibWFudHVvbHVvYnVrdSIsImEiOiJjbHQ4OGJuaGowOXpuMmlvNHRxMjhwcjNwIn0.Ah-KdY3j7V0mm_86NfIJfg"
+
+# google map API key
+google_maps_api_key = "AIzaSyAfJnHO3vlmdTQdGEGBEUZXojhrQFqVjW8"
 
 # calculate average price
 average_prices = joined_data.groupby("BoroName")["PRICE"].mean().reset_index()
@@ -204,7 +210,7 @@ def render_tab_content(active_tab):
                     [
                         dbc.Col(
                             html.Div([dcc.Graph(id="map-graph", figure=fig)]),
-                            width=12, lg=7,  # 在大屏幕上占7/12，在小屏幕上占满整行
+                            width=12, lg=7,
                             style={'height': '80vh'}
                         ),
                         dbc.Col(
@@ -219,11 +225,18 @@ def render_tab_content(active_tab):
                                         html.Br(),
                                         html.Label("Select price range:"),
                                         dbc.Row(price_slider, style=price_slider_style),
-                                        #dbc.Row(price_slider),
-                                    ]
+                                        html.Br(),
+                                        # 这里考虑加一个clear button
+                                        #html.Div(id='click-info')
+                                        html.Div(id='click-info', children=default_content),
+                                        html.Button('清除', id='clear-button', n_clicks=0,
+                                                                   style={'display': 'none'})
+                                    ],
+                                    style={'paddingLeft': '50px'},
                                 ),
                             ],
                             width=12, lg=5,
+                            style={'height': 'auto'},
                         ),
                     ],
                     className="mb-4 g-0",
@@ -670,6 +683,270 @@ fig = go.Figure(
         hoverinfo="text",
     )
 )
+
+# create google info layout
+
+default_content = [
+    html.H4('Please click to display more information.',
+            style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
+]
+@app.callback(
+    [Output('click-info', 'children'),
+     Output('clear-button', 'style')],
+    [Input('map-graph', 'clickData'),
+     Input('clear-button', 'n_clicks')],
+    prevent_initial_call=True
+)
+def display_click_data(clickData, clear_clicks):
+    ctx = dash.callback_context
+
+    if not ctx.triggered:
+        raise PreventUpdate
+
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if triggered_id == 'map-graph' and clickData is not None:
+        lat = clickData['points'][0]['lat']
+        lon = clickData['points'][0]['lon']
+
+        hospital_results = query_nearest_hospital(lat, lon)
+        if hospital_results:
+            hospital_name = hospital_results[0]['name']
+            hospital_lat = hospital_results[0]['geometry']['location']['lat']
+            hospital_lon = hospital_results[0]['geometry']['location']['lng']
+            hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
+        else:
+            hospital_info = html.P('未找到附近的医院。')
+
+        park_name, park_lat, park_lon = query_nearest_park(lat, lon)
+        if park_name:
+            park_info = display_park_info(park_lat, park_lon)
+        else:
+            park_info = html.P('未找到2公里内的公园。')
+
+        return [hospital_info, park_info], {'display': 'block'}
+
+    elif triggered_id == 'clear-button':
+        return default_content, {'display': 'none'}
+
+    raise PreventUpdate
+
+
+
+
+
+
+
+
+
+
+# # 默认的 click-info 内容
+# default_content = [
+#     html.H4('Please click to display more information.',
+#             style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
+# ]
+#
+# # 回调函数用于处理点击事件并显示相应信息
+# @app.callback(
+#     Output('click-info', 'children'),
+#     [Input('map-graph', 'clickData')],
+#     [State('clear-button', 'n_clicks')]
+# )
+# def display_click_data(clickData, clear_clicks):
+#     if clear_clicks > 0:
+#         return default_content
+#     else:
+#         if clickData is not None:
+#             lat = clickData['points'][0]['lat']
+#             lon = clickData['points'][0]['lon']
+#
+#             # 查询最近的医院
+#             hospital_results = query_nearest_hospital(lat, lon)
+#             hospital_info = None
+#             if hospital_results:
+#                 # 获取第一个医院的名称和位置
+#                 hospital_name = hospital_results[0]['name']
+#                 hospital_lat = hospital_results[0]['geometry']['location']['lat']
+#                 hospital_lon = hospital_results[0]['geometry']['location']['lng']
+#                 hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
+#
+#             # 查询最近的公园及步行时间
+#             park_name, park_lat, park_lon = query_nearest_park(lat, lon)
+#             park_info = None
+#             if park_name:
+#                 park_info = display_park_info(lat, lon)
+#
+#             # 构建显示的内容
+#             content = []
+#             if hospital_info:
+#                 content.append(hospital_info)
+#             else:
+#                 content.append(html.P('No hospitals found within the radius.'))
+#
+#             if park_info:
+#                 content.append(park_info)
+#             else:
+#                 content.append(html.P('No parks found within 2km.'))
+#
+#             return html.Div(content)
+#         else:
+#             return default_content
+
+
+# 这是最开始好用的那个版本，没有清除按钮
+# @app.callback(
+#     Output('click-info', 'children'),
+#     [Input('map-graph', 'clickData')]
+# )
+# def display_click_data(clickData):
+#     if clickData is not None:
+#         lat = clickData['points'][0]['lat']
+#         lon = clickData['points'][0]['lon']
+#
+#         # 查询最近的医院
+#         hospital_results = query_nearest_hospital(lat, lon)
+#         hospital_info = None
+#         if hospital_results:
+#             # 获取第一个医院的名称和位置
+#             hospital_name = hospital_results[0]['name']
+#             hospital_lat = hospital_results[0]['geometry']['location']['lat']
+#             hospital_lon = hospital_results[0]['geometry']['location']['lng']
+#             hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
+#
+#         # 查询最近的公园及步行时间
+#         park_name, park_lat, park_lon = query_nearest_park(lat, lon)
+#         park_info = None
+#         if park_name:
+#             park_info = display_park_info(lat, lon)
+#
+#         # 构建显示的内容
+#         #content = [html.H4('Clicked Location Info')]
+#         content = []
+#         if hospital_info:
+#             content.append(hospital_info)
+#         else:
+#             content.append(html.P('No hospitals found within the radius.'))
+#
+#         if park_info:
+#             content.append(park_info)
+#         else:
+#             content.append(html.P('No parks found within 2km.'))
+#
+#         return html.Div(content)
+#     else:
+#         return html.Div([
+#             html.H4('Please click to display more information.',
+#                     style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
+#         ])
+
+## nearby hostipal
+
+def query_nearest_hospital(lat, lon):
+    # Places API requests URL
+    places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    places_params = {
+        'location': f'{lat},{lon}',
+        'radius': 7000,  # radius(m)
+        'type': 'hospital',
+        'key': google_maps_api_key
+    }
+
+    # Places API request
+    places_response = requests.get(places_url, params=places_params)
+    if places_response.status_code == 200:
+        hospital_results = places_response.json()['results']
+        return hospital_results
+
+def display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon):
+    # Directions API URL
+    directions_url = "https://maps.googleapis.com/maps/api/directions/json"
+    directions_params = {
+        'origin': f'{lat},{lon}',
+        'destination': f'{hospital_lat},{hospital_lon}',
+        'mode': 'driving',
+        'key': google_maps_api_key
+    }
+
+    # Directions API request
+    directions_response = requests.get(directions_url, params=directions_params)
+    if directions_response.status_code == 200:
+        directions_results = directions_response.json()['routes'][0]['legs'][0]
+        distance = directions_results['distance']['text']
+        duration = directions_results['duration']['text']
+
+        return html.Div([
+            html.Div([
+                html.Img(src='/assets/hospital_label.png',
+                         style={'height': '25px', 'width': '25px', 'marginRight': '10px'}),
+                html.P(f'{hospital_name}', style={'margin': '0'})
+            ], style={'display': 'flex', 'alignItems': 'center'}),
+            html.P(f'Driving: {distance}, {duration}')
+        ], style={'padding': '10px'})
+
+    else:
+        return f'Failed to retrieve data from Google Directions API. Status code: {directions_response.status_code}'
+
+## display nearby park
+
+def query_nearest_park(lat, lon):
+    # Places API请求URL
+    places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    places_params = {
+        'location': f'{lat},{lon}',
+        'radius': 2000,  # 搜索半径（米）
+        'type': 'park|square',
+        'keyword': 'community garden | playground',
+        'key': google_maps_api_key
+    }
+
+    # 发送Places API请求
+    places_response = requests.get(places_url, params=places_params)
+    if places_response.status_code == 200:
+        park_results = places_response.json()['results']
+        if park_results:
+            # 返回第一个公园的详细信息
+            first_park = park_results[0]
+            park_name = first_park['name']
+            park_lat = first_park['geometry']['location']['lat']
+            park_lon = first_park['geometry']['location']['lng']
+            return park_name, park_lat, park_lon
+    return None, None, None
+
+def display_park_info(lat, lon):
+    park_name, park_lat, park_lon = query_nearest_park(lat, lon)
+    if park_name:
+        # Directions API URL
+        directions_url = "https://maps.googleapis.com/maps/api/directions/json"
+        directions_params = {
+            'origin': f'{lat},{lon}',
+            'destination': f'{park_lat},{park_lon}',
+            'mode': 'walking',  # 计算步行路线
+            'key': google_maps_api_key
+        }
+
+        # 发送Directions API请求
+        directions_response = requests.get(directions_url, params=directions_params)
+        if directions_response.status_code == 200:
+            directions_results = directions_response.json()['routes'][0]['legs'][0]
+            distance = directions_results['distance']['text']
+            duration = directions_results['duration']['text']
+
+            return html.Div([
+                html.Div([
+                    html.Img(src='/assets/parks_label.png',
+                             style={'height': '25px', 'width': '25px', 'marginRight': '10px'}),
+                    html.P(f'{park_name}', style={'margin': '0'})
+                ], style={'display': 'flex', 'alignItems': 'center'}),
+                html.P(f'Walking: {distance}, {duration}'),
+            ], style={'padding': '10px'})
+
+        else:
+            return f'Failed to retrieve data from Google Directions API. Status code: {directions_response.status_code}'
+    else:
+        return 'No nearby park found.'
+
+
+
 
 # inialize map
 fig.update_layout(
