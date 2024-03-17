@@ -225,7 +225,8 @@ def render_tab_content(active_tab):
                                                            style={'font-size': '18px',
                                                                   'font-weight': 'bold',
                                                                   'color': '#2D5FF1',
-                                                                  'margin-left': '8px'}),
+                                                                  'margin-left': '5px',
+                                                                  'margin-bottom': '10px'}),
                                                 filter_region,
                                             ],
                                             style={'marginRight': '0px'},
@@ -237,7 +238,8 @@ def render_tab_content(active_tab):
                                                            style={'font-size': '18px',
                                                                   'font-weight': 'bold',
                                                                   'color': '#2D5FF1',
-                                                                  'margin-left': '8px'}),
+                                                                  'margin-left': '5px',
+                                                                  'margin-bottom': '10px'}),
                                                 filter_type,
                                             ],
                                             style={'marginLeft': '0px'},
@@ -364,7 +366,7 @@ def render_tab_content(active_tab):
                             ),
                             md=6,
                         ),
-                        # 将 broker-histogram 放回右侧
+                        # put broker-histogram at right side
                     ],
                     align="end",
                 ),
