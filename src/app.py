@@ -226,10 +226,8 @@ def render_tab_content(active_tab):
                                         html.Label("Select price range:"),
                                         dbc.Row(price_slider, style=price_slider_style),
                                         html.Br(),
-                                        # 这里考虑加一个clear button
-                                        #html.Div(id='click-info')
                                         html.Div(id='click-info', children=default_content),
-                                        html.Button('清除', id='clear-button', n_clicks=0,
+                                        html.Button('close nearby information', id='clear-button', n_clicks=0,
                                                                    style={'display': 'none'})
                                     ],
                                     style={'paddingLeft': '50px'},
@@ -687,14 +685,15 @@ fig = go.Figure(
 # create google info layout
 
 default_content = [
-    html.H4('Please click to display more information.',
+    html.H4('Please click map for more information.',
             style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
 ]
 @app.callback(
     [Output('click-info', 'children'),
-     Output('clear-button', 'style')],
+     Output('clear-button', 'style'),],
     [Input('map-graph', 'clickData'),
      Input('clear-button', 'n_clicks')],
+
     prevent_initial_call=True
 )
 def display_click_data(clickData, clear_clicks):
@@ -716,13 +715,13 @@ def display_click_data(clickData, clear_clicks):
             hospital_lon = hospital_results[0]['geometry']['location']['lng']
             hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
         else:
-            hospital_info = html.P('未找到附近的医院。')
+            hospital_info = html.P('No hospitals found within 7km.')
 
         park_name, park_lat, park_lon = query_nearest_park(lat, lon)
         if park_name:
             park_info = display_park_info(park_lat, park_lon)
         else:
-            park_info = html.P('未找到2公里内的公园。')
+            park_info = html.P('No parks found within 2km.')
 
         return [hospital_info, park_info], {'display': 'block'}
 
@@ -737,107 +736,6 @@ def display_click_data(clickData, clear_clicks):
 
 
 
-
-
-
-# # 默认的 click-info 内容
-# default_content = [
-#     html.H4('Please click to display more information.',
-#             style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
-# ]
-#
-# # 回调函数用于处理点击事件并显示相应信息
-# @app.callback(
-#     Output('click-info', 'children'),
-#     [Input('map-graph', 'clickData')],
-#     [State('clear-button', 'n_clicks')]
-# )
-# def display_click_data(clickData, clear_clicks):
-#     if clear_clicks > 0:
-#         return default_content
-#     else:
-#         if clickData is not None:
-#             lat = clickData['points'][0]['lat']
-#             lon = clickData['points'][0]['lon']
-#
-#             # 查询最近的医院
-#             hospital_results = query_nearest_hospital(lat, lon)
-#             hospital_info = None
-#             if hospital_results:
-#                 # 获取第一个医院的名称和位置
-#                 hospital_name = hospital_results[0]['name']
-#                 hospital_lat = hospital_results[0]['geometry']['location']['lat']
-#                 hospital_lon = hospital_results[0]['geometry']['location']['lng']
-#                 hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
-#
-#             # 查询最近的公园及步行时间
-#             park_name, park_lat, park_lon = query_nearest_park(lat, lon)
-#             park_info = None
-#             if park_name:
-#                 park_info = display_park_info(lat, lon)
-#
-#             # 构建显示的内容
-#             content = []
-#             if hospital_info:
-#                 content.append(hospital_info)
-#             else:
-#                 content.append(html.P('No hospitals found within the radius.'))
-#
-#             if park_info:
-#                 content.append(park_info)
-#             else:
-#                 content.append(html.P('No parks found within 2km.'))
-#
-#             return html.Div(content)
-#         else:
-#             return default_content
-
-
-# 这是最开始好用的那个版本，没有清除按钮
-# @app.callback(
-#     Output('click-info', 'children'),
-#     [Input('map-graph', 'clickData')]
-# )
-# def display_click_data(clickData):
-#     if clickData is not None:
-#         lat = clickData['points'][0]['lat']
-#         lon = clickData['points'][0]['lon']
-#
-#         # 查询最近的医院
-#         hospital_results = query_nearest_hospital(lat, lon)
-#         hospital_info = None
-#         if hospital_results:
-#             # 获取第一个医院的名称和位置
-#             hospital_name = hospital_results[0]['name']
-#             hospital_lat = hospital_results[0]['geometry']['location']['lat']
-#             hospital_lon = hospital_results[0]['geometry']['location']['lng']
-#             hospital_info = display_hospital_info(hospital_name, lat, lon, hospital_lat, hospital_lon)
-#
-#         # 查询最近的公园及步行时间
-#         park_name, park_lat, park_lon = query_nearest_park(lat, lon)
-#         park_info = None
-#         if park_name:
-#             park_info = display_park_info(lat, lon)
-#
-#         # 构建显示的内容
-#         #content = [html.H4('Clicked Location Info')]
-#         content = []
-#         if hospital_info:
-#             content.append(hospital_info)
-#         else:
-#             content.append(html.P('No hospitals found within the radius.'))
-#
-#         if park_info:
-#             content.append(park_info)
-#         else:
-#             content.append(html.P('No parks found within 2km.'))
-#
-#         return html.Div(content)
-#     else:
-#         return html.Div([
-#             html.H4('Please click to display more information.',
-#                     style={'fontSize': '20px', 'color': '#2D5FF1', 'fontWeight': 'bold'})
-#         ])
 
 ## nearby hostipal
 
@@ -957,8 +855,6 @@ fig.update_layout(
         center=dict(lat=NewYork["LATITUDE"].mean(), lon=NewYork["LONGITUDE"].mean()),
     ),
     margin={"r": 0, "t": 0, "l": 0, "b": 0},
-    #width=600,
-    #height=350,
 )
 
 
@@ -1024,8 +920,6 @@ def update_map(selected_sublocality, selected_type, price_range):
             ),
         ),
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        #width=600,
-        #height=350,
     )
     return fig
 
