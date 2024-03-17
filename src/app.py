@@ -142,6 +142,10 @@ app.layout = dbc.Container(
                             ],
                             id="tabs",
                             active_tab="tab-1",
+                            #vertical=True,
+                            #style={'width': '100%'}
+                            className="vertical-tabs"
+
                         ),
                     ],
                     width=2,
@@ -200,10 +204,8 @@ def render_tab_content(active_tab):
                     [
                         dbc.Col(
                             html.Div([dcc.Graph(id="map-graph", figure=fig)]),
-                            # width=8
-                            md=6,
-                            style={"marginLeft": "20px"},
-                            # , style={'border': '1px solid #d3d3d3', 'border-radius': '10px'}
+                            width=12, lg=7,  # 在大屏幕上占7/12，在小屏幕上占满整行
+                            style={'height': '80vh'}
                         ),
                         dbc.Col(
                             [
@@ -217,18 +219,19 @@ def render_tab_content(active_tab):
                                         html.Br(),
                                         html.Label("Select price range:"),
                                         dbc.Row(price_slider, style=price_slider_style),
+                                        #dbc.Row(price_slider),
                                     ]
                                 ),
                             ],
-                            md=5,
-                            style={"marginLeft": "20px"},
-                        ),  # , md = 4, style = {'border': '1px solid #d3d3d3', 'border-radius': '10px'})
+                            width=12, lg=5,
+                        ),
                     ],
-                    className="mb-4",
+                    className="mb-4 g-0",
                 ),
                 
                 
-            ]
+            ],
+            style = {'margin': '20px'}
         )
     elif active_tab == "tab-3":
         top_bar_content = "Region Section: Detailed Information"
@@ -612,7 +615,7 @@ filter_region = dcc.Dropdown(
     placeholder="Select a locality...",
     # value=sub_locality[0],
     # clearable=False,
-    style={"width": "200px"},
+    style={"width": "250px"},
 )
 
 # create type filter
@@ -623,7 +626,7 @@ filter_type = dcc.Dropdown(
     id="filter_typeviz",
     options=dropdown_options_type_viz,
     placeholder="Select a type...",
-    style={"width": "200px"},
+    style={"width": "250px"},
 )
 
 price_slider = dcc.RangeSlider(
@@ -677,8 +680,8 @@ fig.update_layout(
         center=dict(lat=NewYork["LATITUDE"].mean(), lon=NewYork["LONGITUDE"].mean()),
     ),
     margin={"r": 0, "t": 0, "l": 0, "b": 0},
-    width=600,
-    height=350,
+    #width=600,
+    #height=350,
 )
 
 
@@ -744,8 +747,8 @@ def update_map(selected_sublocality, selected_type, price_range):
             ),
         ),
         margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        width=600,
-        height=350,
+        #width=600,
+        #height=350,
     )
     return fig
 
